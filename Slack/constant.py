@@ -1,0 +1,5 @@
+SLACK_API_URL = 'https://slack.com/api'
+CONVERSATIONS_URL = SLACK_API_URL + '/conversations'
+CHANNEL_LIST_URL = CONVERSATIONS_URL + '.list'
+CHANNEL_HISTORY_URL = CONVERSATIONS_URL + '.history'
+TOKEN_FILE_NAME = './token.json'

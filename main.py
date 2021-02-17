@@ -1,5 +1,5 @@
-import slackapi
+from Slack.api import *
 
 if __name__ == '__main__':
-    slackapi.init_slack_api()
-
+    slack_api = SlackAPI()
+    print(slack_api.channel_list_json())
