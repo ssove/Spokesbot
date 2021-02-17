@@ -20,26 +20,32 @@ class SlackAPI:
             'token': self.token
         }
 
-    def channel_list_json(self):
+    def get_channel_list_json(self):
         params = self._basic_params
         res = requests.get(Slack.constant.CHANNEL_LIST_URL, params=params)
-        channel_list = json_normalize(res.json()['channels'])
-        return channel_list
+        return res.json()['channels']
 
-    def channel_id(self, channel_name):
-        channel_list = self.channel_list_json()
-        channel_id = list(channel_list.loc[channel_list['name'] == channel_name, 'id'])[0]
-        return channel_id
+    def get_channel_id(self, channel_name):
+        channel_list = json_normalize(self.get_channel_list_json())
+        get_channel_id = list(channel_list.loc[channel_list['name'] == channel_name, 'id'])[0]
+        return get_channel_id
 
-    def all_chat_data_in_channel(self, channel_id):
+    def get_all_chat_data_in_channel(self, channel_id):
         params = self._basic_params
         params['channel'] = channel_id
         res = requests.get(Slack.constant.CHANNEL_HISTORY_URL, params=params)
         chat_data = json_normalize(res.json()['messages'])
         return chat_data
 
-    def timestamp_of_chat_data(self, channel_id, text):
-        chat_data = self.all_chat_data_in_channel(channel_id)
+    def get_timestamp_of_chat_data(self, channel_id, text):
+        chat_data = self.get_all_chat_data_in_channel(channel_id)
         chat_data['text'] = chat_data['text'].apply(lambda x: x.replace('\xa0', ' '))
         ts = chat_data.loc[chat_data['text'] == text, 'ts'].to_list()[0]
         return ts
+
+    def post_message(self, channel_id, msg):
+        data = self._basic_params
+        data['channel'] = channel_id
+        data['text'] = msg
+        res = requests.post(Slack.constant.CHAT_POST_MESSAGE_URL, data=data)
+        return res
