@@ -1,53 +1,70 @@
-import json
-import requests
-from pandas import json_normalize
+import os
+import time
+import re
+from slack import WebClient
 
-import Slack.constants
-import Slack.urls
+client = WebClient(os.environ.get('SLACK_BOT_TOKEN'))
+spokensbot_id = None
 
-
-def slack_token_from_file(token_file_name):
-    with open(token_file_name, 'r') as json_file:
-        slack_dict = json.load(json_file)
-
-    return slack_dict['token']
+RTM_READ_DELAY = 1
+EXAMPLE_COMMAND = 'do'
+MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
 
 
-class SlackAPI:
-    def __init__(self):
-        self.token = slack_token_from_file(Slack.constants.TOKEN_FILE_NAME)
-        self._basic_headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-        self._basic_params = {
-            'token': self.token
-        }
+def parse_bot_commands(slack_events):
+    '''
+        Parses a list of events coming from the Slack RTM API to find bot commands.
+        If a bot command is found, this function returns a tuple of command and channel.
+        If its not found, then this function returns None, None.
+    '''
+    for event in slack_events:
+        if event['type'] == 'message' and not 'subtype' in event:
+            user_id, message = parse_direct_mention(event['text'])
+            if user_id == starterbot_id:
+                return message, event['channel']
+    return None, None
 
-    def get_channel_list_json(self):
-        res = requests.get(Slack.urls.CHANNEL_LIST_URL, headers=self._basic_headers, params=self._basic_params)
-        return res.json()['channels']
 
-    def get_channel_id(self, channel_name):
-        channel_list = json_normalize(self.get_channel_list_json())
-        get_channel_id = list(channel_list.loc[channel_list['name'] == channel_name, 'id'])[0]
-        return get_channel_id
+def parse_direct_mention(message_text):
+    '''
+        Finds a direct mention (a mention that is at the beginning) in message text
+        and returns the user ID which was mentioned. If there is no direct mention, returns None
+    '''
+    matches = re.search(MENTION_REGEX, message_text)
+    # the first group contains the username, the second group contains the remaining message
+    return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
 
-    def get_all_chat_data_in_channel(self, channel_id):
-        params = self._basic_params
-        params['channel'] = channel_id
-        res = requests.get(Slack.urls.CHANNEL_HISTORY_URL, headers=self._basic_headers, params=params)
-        chat_data = json_normalize(res.json()['messages'])
-        return chat_data
 
-    def get_timestamp_of_chat_data(self, channel_id, text):
-        chat_data = self.get_all_chat_data_in_channel(channel_id)
-        chat_data['text'] = chat_data['text'].apply(lambda x: x.replace('\xa0', ' '))
-        ts = chat_data.loc[chat_data['text'] == text, 'ts'].to_list()[0]
-        return ts
+def handle_command(command, channel):
+    '''
+        Executes bot command if the command is known
+    '''
+    # Default response is help text for the user
+    default_response = 'Not sure what you mean. Try *{}*.'.format(EXAMPLE_COMMAND)
 
-    def post_message(self, channel_id, msg):
-        data = self._basic_params
-        data['channel'] = channel_id
-        data['text'] = msg
-        res = requests.post(Slack.urls.CHAT_POST_MESSAGE_URL, headers=self._basic_headers, data=data)
-        return res
+    # Finds and executes the given command, filling in response
+    response = None
+    # This is where you start to implement more commands!
+    if command.startswith(EXAMPLE_COMMAND):
+        response = 'Sure...write some more code then I can do that!'
+
+    # Sends the response back to the channel
+    client.api_call(
+        'chat.postMessage',
+        channel=channel,
+        text=response or default_response
+    )
+
+
+if __name__ == '__main__':
+    if client.rtm_connect(with_team_state=False):
+        print('Starter Bot connected and running!')
+        # Read bot's user ID by calling Web API method `auth.test`
+        starterbot_id = client.api_call('auth.test')['user_id']
+        while True:
+            command, channel = parse_bot_commands(client.rtm_read())
+            if command:
+                handle_command(command, channel)
+            time.sleep(RTM_READ_DELAY)
+    else:
+        print('Connection failed. Exception traceback printed above.')
