@@ -15,14 +15,15 @@ def slack_token_from_file(token_file_name):
 class SlackAPI:
     def __init__(self):
         self.token = slack_token_from_file(Slack.constant.TOKEN_FILE_NAME)
-        self._basic_params = {
+        self._basic_headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
+        }
+        self._basic_params = {
             'token': self.token
         }
 
     def get_channel_list_json(self):
-        params = self._basic_params
-        res = requests.get(Slack.constant.CHANNEL_LIST_URL, params=params)
+        res = requests.get(Slack.constant.CHANNEL_LIST_URL, headers=self._basic_headers, params=self._basic_params)
         return res.json()['channels']
 
     def get_channel_id(self, channel_name):
@@ -33,7 +34,7 @@ class SlackAPI:
     def get_all_chat_data_in_channel(self, channel_id):
         params = self._basic_params
         params['channel'] = channel_id
-        res = requests.get(Slack.constant.CHANNEL_HISTORY_URL, params=params)
+        res = requests.get(Slack.constant.CHANNEL_HISTORY_URL, headers=self._basic_headers, params=params)
         chat_data = json_normalize(res.json()['messages'])
         return chat_data
 
@@ -47,5 +48,5 @@ class SlackAPI:
         data = self._basic_params
         data['channel'] = channel_id
         data['text'] = msg
-        res = requests.post(Slack.constant.CHAT_POST_MESSAGE_URL, data=data)
+        res = requests.post(Slack.constant.CHAT_POST_MESSAGE_URL, headers=self._basic_headers, data=data)
         return res
