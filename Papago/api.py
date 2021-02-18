@@ -1,7 +1,8 @@
 import json
 import requests
 
-import Papago.constant
+import Papago.constants
+import Papago.urls
 
 
 def get_auth_keys_from_file(auth_file_name):
@@ -13,7 +14,7 @@ def get_auth_keys_from_file(auth_file_name):
 
 class PapagoAPI:
     def __init__(self):
-        self.client_id, self.client_secret = get_auth_keys_from_file(Papago.constant.AUTH_FILE_NAME)
+        self.client_id, self.client_secret = get_auth_keys_from_file(Papago.constants.AUTH_FILE_NAME)
         self._headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-Naver-Client-Id': self.client_id,
@@ -27,5 +28,5 @@ class PapagoAPI:
             'target': target,
             'text': text
         }
-        res = requests.post(Papago.constant.PAPAGO_API_URL, headers=headers, data=data)
+        res = requests.post(Papago.urls.PAPAGO_API_URL, headers=headers, data=data)
         return res.json()
